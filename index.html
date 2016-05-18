@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+        <meta charset="utf-8">
+        <title>Vizualizacia trasy</title>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
+        <link rel="stylesheet" href="res/app.css" />
+        <script src="https://maps.googleapis.com/maps/api/js?v=3&sensor=false&libraries=geometry&language=sk"></script>
+        <script type="text/javascript" src="res/markerwithlabel_packed.js"></script>
+        <script src="res/jquery-1.11.0.min.js"></script>
+        <script src="res/jquery-csv.js"></script>
+        <script src="res/tooltip.js"></script>
+        <script src="res/bootstrap.js"></script>
+        <script src="res/FileSaver.js"></script>
+        <script src="res/dygraph-combined.js"></script>
+        <script src="res/app.js"></script>
+    </head>
+    <body>
+        <div class="container-fluid">
+            <div id="header" class="row">
+                <div class="col-xs-6">
+                    <h3></h3>
+                </div>
+                <div class="col-xs-6 text-right">
+                    <div class="btn-group" role="group">
+                        <button id="showMap" type="button" class="btn btn-default">
+                            <span class="glyphicon glyphicon-map-marker" aria-hidden="true"></span> Zobraziť mapu
+                        </button>
+                        <button id="showGraph" type="button" class="btn btn-default">
+                            <span class="glyphicon glyphicon-stats" aria-hidden="true"></span> Zobraziť grafy
+                        </button>
+                    </div>
+                    <button id="showStart" type="button" class="btn btn-default">
+                        <span class="glyphicon glyphicon-file" aria-hidden="true"></span> Vybrať súbor
+                    </button> 
+                </div>
+                <div class="col-xs-12">
+                    <hr/>
+                </div>
+            </div>
+        </div>
+        <div id="content"></div>
+
+        <div id="hidden">
+            <div id="start" class="container-fluid">
+                <h2 class="instructions">Vyberte prosím súbor ktorý si prajete vizualizovať</h2>
+                <p class="instructions">Akceptované sú CSV súbory, ktoré obsahujú dáta vo formáte: <i>čas</i>, <i>a<sub>x</sub></i>, <i>a<sub>y</sub></i>, <i>a<sub>z</sub></i>, <i>latitude</i>, <i>longitude</i>, <i>speed</i> (km/h) .</p>
+                <input type="file" id="datafile" />
+            </div>
+            <div id="map">
+                <div id="legend-left" class="legend well collapse in">
+                    <h4>Legenda<button class="pull-right btn btn-sm btn-default" data-toggle="collapse" data-target="#legend-left" aria-expanded="true" aria-controls="#legend-left"><span class="glyphicon glyphicon-chevron-down"></span></button></h4>
+                    <ul class="head">
+                        <li>
+                            <div class="icon"> 
+                                <img src="res/markerZ.png" alt="Z"/>
+                            </div>
+                            <div class="description">
+                                Začiatok trasy
+                            </div>
+                        </li>
+                        <li>
+                            <div class="icon">
+                                <img src="res/markerK.png" alt="K"/>
+                            </div>
+                            <div class="description">
+                                Koniec trasy
+                            </div>
+                        </li>
+                        <li>
+                            <div class="icon">
+                                <img src="res/markerS.png" alt="S"/>
+                            </div>
+                            <div class="description">
+                                Státie
+                            </div>
+                        </li>
+                    </ul>
+                    <ul class="intervals"></ul>
+                </div>
+                <div id="legend-right" class="legend well collapse in">
+                    <h4>Legenda<button class="pull-right btn btn-sm btn-default" data-toggle="collapse" data-target="#legend-right" aria-expanded="true" aria-controls="#legend-right"><span class="glyphicon glyphicon-chevron-down"></span></button></h4>
+                    <ul class="head">
+                        <li>
+                            <div class="icon">
+                                <img src="res/markerZ.png" alt="Z"/>
+                            </div>
+                            <div class="description">
+                                Začiatok trasy
+                            </div>
+                        </li>
+                        <li>
+                            <div class="icon">
+                                <img src="res/markerK.png" alt="K"/>
+                            </div>
+                            <div class="description">
+                                Koniec trasy
+                            </div>
+                        </li>
+                        <li>
+                            <div class="icon">
+                                <img src="res/markerS.png" alt="S"/>
+                            </div>
+                            <div class="description">
+                                Státie
+                            </div>
+                        </li>
+                    </ul>
+                    <ul class="intervals"></ul>
+                </div>
+                <div id="map-canvas-left"></div>
+                <div id="map-canvas-right"></div>
+            </div>
+        </div>
+        <div id="graph" class="container-fluid">
+            <div class="row">
+                <div class="col-xs-6">
+                    <div class="row">
+                        <div class="col-xs-6">
+                            <h3>Spôsob vyhladenia hodnôt:</h3>
+                            <div class="radio">
+                                <label><input type="radio" name="dataSet" value="raw" checked="checked"/>Surové hodnoty (bez úpravy)</label>
+                                <a role="button" data-toggle="popover" tabindex="0" data-trigger="focus" data-content="Údaje získané z akcelerometra bez aplikovania filtra."><span class="glyphicon glyphicon-question-sign"></span></a>
+                            </div>
+                            <div class="radio">
+                                <label><input type="radio" name="dataSet" value="mavg"/>Kĺzavý priemer</label>
+                                <!--<a role="button" data-toggle="popover" tabindex="0" data-trigger="focus" data-content="Kĺzavý priemer je vypočítaný pre každú hodnotu z priemeru aktuálnej hodnoty a predchádzajúcich a nasledujúcich 10 hodnôt."><span class="glyphicon glyphicon-question-sign"></span></a>--->
+                            </div>
+                            <div class="radio">
+                                <label><input type="radio" name="dataSet" value="emavg2"/>Exponenciálny kĺzavý priemer (α=2)</label>
+                            </div>
+                            <div class="radio">
+                                <label><input type="radio" name="dataSet" value="emavg175"/>Exponenciálny kĺzavý priemer (α=1.75)</label>
+                            </div>
+                            <div class="radio">
+                                <label><input type="radio" name="dataSet" value="emavg15"/>Exponenciálny kĺzavý priemer (α=1.5)</label>
+                            </div>
+                            <div class="radio">
+                                <label><input type="radio" name="dataSet" value="lowpass75"/>Low pass filter (α=0.75)</label>
+                            </div>
+                            <div class="radio">
+                                <label><input type="radio" name="dataSet" value="lowpass5"/>Low pass filter (α=0.5)</label>
+                            </div>
+                            <div class="radio">
+                                <label><input type="radio" name="dataSet" value="lowpass25"/>Low pass filter (α=0.25)</label>
+                            </div>
+                            <div class="radio">
+                                <label><input type="radio" name="dataSet" value="median"/>Median filter</label>
+                            </div>
+                        </div>
+                        <div class="col-xs-6">
+                            <h3>Zobraziť hodnoty:</h3>
+                            <div class="checkbox">
+                                <label><input type="checkbox" name="dataColumns" value="ax"/>a<sub>x</sub></label>
+                                <a role="button" data-toggle="popover" tabindex="0" data-trigger="focus" data-content="Zrýchlenie na osi x"><span class="glyphicon glyphicon-question-sign"></span></a>
+                            </div>
+                            <div class="checkbox">
+                                <label><input type="checkbox" name="dataColumns" value="ay"/>a<sub>y</sub></label>
+                                <a role="button" data-toggle="popover" tabindex="0" data-trigger="focus" data-content="Zrýchlenie na osi y"><span class="glyphicon glyphicon-question-sign"></span></a>
+                            </div>
+                            <div class="checkbox">
+                                <label><input type="checkbox" name="dataColumns" value="az"/>a<sub>z</sub></label>
+                                <a role="button" data-toggle="popover" tabindex="0" data-trigger="focus" data-content="Zrýchlenie na osi z"><span class="glyphicon glyphicon-question-sign"></span></a>
+                            </div>
+                            <div class="checkbox">
+                                <label><input type="checkbox" name="dataColumns" checked="checked" value="a"/>a</label>
+                                <a role="button" data-toggle="popover" tabindex="0" data-trigger="focus" data-content="Veľkosť vektora zrýchlenia"><span class="glyphicon glyphicon-question-sign"></span></a>
+                            </div>
+                            <div class="checkbox">
+                                <label><input type="checkbox" name="dataColumns" checked="checked" value="v"/>v</label>
+                                <a role="button" data-toggle="popover" tabindex="0" data-trigger="focus" data-content="Rýchlosť podľa GPS"><span class="glyphicon glyphicon-question-sign"></span></a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xs-6">
+                    <table class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <td><div class="checkbox">
+                                <label><input type="checkbox" name="filterStops" checked="checked" value="v"/>Vylúčiť státia</label>
+                            </div></td>
+                                <th>a<sub>x</sub> [m.s<sup>-2</sup>]</th>
+                                <th>a<sub>y</sub> [m.s<sup>-2</sup>]</th>
+                                <th>a<sub>z</sub> [m.s<sup>-2</sup>]</th>
+                                <th>a [m.s<sup>-2</sup>]</th>
+                                <th>v [km.h<sup>-1</sup>]</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <th>MIN:</th>
+                                <td id ="minAx"></td>
+                                <td id ="minAy"></td>
+                                <td id ="minAz"></td>
+                                <td id ="minA"></td>
+                                <td id ="minV"></td>
+                            </tr>
+                            <tr>
+                                <th>MAX</th>
+                                <td id ="maxAx"></td>
+                                <td id ="maxAy"></td>
+                                <td id ="maxAz"></td>
+                                <td id ="maxA"></td>
+                                <td id ="maxV"></td>
+                            </tr>
+                            <tr>
+                                <th>AVG:</th>
+                                <td id ="avgAx"></td>
+                                <td id ="avgAy"></td>
+                                <td id ="avgAz"></td>
+                                <td id ="avgA"></td>
+                                <td id ="avgV"></td>
+                            </tr>
+                            <tr>
+                                <th>STDEV:</th>
+                                <td id ="devAx"></td>
+                                <td id ="devAy"></td>
+                                <td id ="devAz"></td>
+                                <td id ="devA"></td>
+                                <td id ="devV"></td>
+                            </tr>
+                        </tbody>
+
+                    </table>
+                    <div class="row">
+                        <div class="col-xs-12 text-right">
+                            <button id="exportData" type="button" class="btn btn-default">
+                                <span class="glyphicon glyphicon-export" aria-hidden="true"></span> Exportovať do CSV
+                            </button>
+                            <br/><br/>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="chart">
+
+            </div>
+            <div class="text-center">
+                <br/><br/>
+                <button class="btn btn-default btn-small" id="panright"><span class="glyphicon glyphicon-arrow-left"></span></button>
+                <button class="btn btn-default btn-small" id="pan30sec">30 <small>sek.</small></button>
+                <button class="btn btn-default btn-small" id="pan1min">1 <small>min.</small></button>
+                <button class="btn btn-default btn-small" id="panreset"><span class="glyphicon glyphicon-repeat"></span></button>
+                <button class="btn btn-default btn-small" id="panleft"><span class="glyphicon glyphicon-arrow-right"></span></button>
+                <br/><br/>
+            </div>
+        </div>
+
+
+    </body>
+</html>
