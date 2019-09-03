@@ -5,7 +5,7 @@ This application provides various views to help the analysis of the collected da
 ## Input file
 The application takes as input a CSV text file with arbitrary amount of rows.
 
-![Input](./doc/input.png)
+![Input](./doc/input.png) Translation: _Please select a file which you'd like to visualize._
  
 ### Input format
 The format of the input file is the following:<br />
